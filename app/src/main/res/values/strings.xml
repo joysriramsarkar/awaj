@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Awaj (আওয়াজ)</string>
+    <string name="accessibility_service_description">আওয়াজ অ্যাক্সেসিবিলিটি সার্ভিস ব্যবহারকারীর ভয়েস কমান্ড অনুযায়ী স্ক্রিনের তথ্য পড়তে ও নির্দেশিত অ্যাকশন সম্পাদন করতে সহায়তা করে।</string>
+    <string name="voice_service_title">আওয়াজ ভয়েস সহকারী</string>
+    <string name="voice_service_desc">ভয়েস কমান্ড গ্রহণের জন্য সক্রিয় রয়েছে</string>
+    <string name="floating_mic_title">আওয়াজ ভাসমান মাইক</string>
+</resources>
