@@ -2,6 +2,7 @@ package com.awaj.assistant.accessibility
 
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
+import java.util.Locale
 
 data class UiElement(
     val id: Int,
@@ -12,11 +13,19 @@ data class UiElement(
     val isClickable: Boolean,
     val isEditable: Boolean,
     val isScrollable: Boolean,
+    val isPassword: Boolean = false,
+    val isSensitive: Boolean = false,
     val bounds: Rect,
     val nodeRef: AccessibilityNodeInfo? = null
 )
 
 object ScreenTreeReader {
+
+    private val sensitivePatterns = listOf(
+        "pin", "cvv", "otp", "password", "পাসওয়ার্ড", "পাসওয়ার্ড",
+        "upi pin", "ইউপিআই পিন", "card number", "কার্ড নম্বর",
+        "টাকা পাঠান", "send money", "security code"
+    )
 
     fun dumpWindowHierarchy(rootNode: AccessibilityNodeInfo?): List<UiElement> {
         if (rootNode == null) return emptyList()
@@ -34,6 +43,10 @@ object ScreenTreeReader {
             val clickable = node.isClickable
             val editable = node.isEditable
             val scrollable = node.isScrollable
+            val isPassword = node.isPassword
+
+            val fullText = "$text $desc $viewId".lowercase(Locale.getDefault())
+            val isSensitive = isPassword || sensitivePatterns.any { fullText.contains(it) }
 
             val rect = Rect()
             node.getBoundsInScreen(rect)
@@ -43,13 +56,15 @@ object ScreenTreeReader {
                 elements.add(
                     UiElement(
                         id = counter++,
-                        text = text,
-                        contentDescription = desc,
+                        text = if (isPassword) "••••••" else text,
+                        contentDescription = if (isPassword) "Password Field" else desc,
                         viewIdResourceName = viewId,
                         className = className,
                         isClickable = clickable,
                         isEditable = editable,
                         isScrollable = scrollable,
+                        isPassword = isPassword,
+                        isSensitive = isSensitive,
                         bounds = rect,
                         nodeRef = node
                     )

@@ -1,6 +1,8 @@
 package com.awaj.assistant.tts
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,14 +11,16 @@ import kotlinx.coroutines.flow.asStateFlow
 import java.util.Locale
 
 class TtsManager(
-    context: Context,
-    private val onSpeechCompleted: (() -> Unit)? = null
+    context: Context
 ) {
     private var tts: TextToSpeech? = null
     private var isInitialized = false
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private val _isSpeaking = MutableStateFlow(false)
     val isSpeaking: StateFlow<Boolean> = _isSpeaking.asStateFlow()
+
+    var onSpeechCompletedListener: (() -> Unit)? = null
 
     init {
         tts = TextToSpeech(context.applicationContext) { status ->
@@ -41,23 +45,49 @@ class TtsManager(
 
                     override fun onDone(utteranceId: String?) {
                         _isSpeaking.value = false
-                        onSpeechCompleted?.invoke()
+                        mainHandler.post {
+                            onSpeechCompletedListener?.invoke()
+                        }
                     }
 
                     override fun onError(utteranceId: String?) {
                         _isSpeaking.value = false
+                        mainHandler.post {
+                            onSpeechCompletedListener?.invoke()
+                        }
                     }
                 })
+            } else {
+                isInitialized = false
             }
         }
     }
 
     fun speak(textBangla: String) {
-        if (!isInitialized || textBangla.isBlank()) return
+        if (textBangla.isBlank()) {
+            onSpeechCompletedListener?.invoke()
+            return
+        }
+
+        if (!isInitialized || tts == null) {
+            // TTS engine not available or Bengali not installed on device
+            _isSpeaking.value = false
+            // Give brief delay for UI readability before auto-resetting
+            mainHandler.postDelayed({
+                onSpeechCompletedListener?.invoke()
+            }, 2500)
+            return
+        }
 
         stop()
         val utteranceId = "Awaj_${System.currentTimeMillis()}"
-        tts?.speak(textBangla, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        val result = tts?.speak(textBangla, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+        if (result != TextToSpeech.SUCCESS) {
+            _isSpeaking.value = false
+            mainHandler.postDelayed({
+                onSpeechCompletedListener?.invoke()
+            }, 2000)
+        }
     }
 
     fun stop() {

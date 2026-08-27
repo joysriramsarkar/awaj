@@ -17,6 +17,9 @@ interface CommandLogDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertLog(log: CommandLog): Long
 
+    @Query("DELETE FROM command_logs WHERE timestamp < :cutoffTimestamp")
+    suspend fun deleteLogsOlderThan(cutoffTimestamp: Long)
+
     @Query("DELETE FROM command_logs")
     suspend fun clearAllLogs()
 

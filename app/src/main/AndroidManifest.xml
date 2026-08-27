@@ -13,12 +13,14 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
 
     <!-- Device Control & Alarms -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.FLASHLIGHT" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <!-- Overlay & Foreground Services -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -39,6 +41,12 @@
         <package android:name="com.google.android.gm" />
         <package android:name="com.facebook.katana" />
         <package android:name="com.facebook.orca" />
+        <package android:name="com.spotify.music" />
+        <package android:name="org.videolan.vlc" />
+        <package android:name="com.google.android.apps.nbu.paisa.user" />
+        <package android:name="com.phonepe.app" />
+        <package android:name="net.one97.paytm" />
+        <package android:name="in.org.npci.upiapp" />
     </queries>
 
     <application

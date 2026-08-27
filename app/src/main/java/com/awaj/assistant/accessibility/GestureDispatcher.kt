@@ -29,6 +29,18 @@ object GestureDispatcher {
         )
     }
 
+    fun clickElement(service: AccessibilityService, element: UiElement, onComplete: (() -> Unit)? = null): Boolean {
+        // Dynamic Safety Gate: Never click password or financial credential nodes
+        if (element.isPassword || element.isSensitive) {
+            return false
+        }
+
+        val centerX = element.bounds.centerX().toFloat()
+        val centerY = element.bounds.centerY().toFloat()
+        click(service, centerX, centerY, onComplete)
+        return true
+    }
+
     fun clickElementBounds(service: AccessibilityService, bounds: Rect, onComplete: (() -> Unit)? = null) {
         val centerX = bounds.centerX().toFloat()
         val centerY = bounds.centerY().toFloat()

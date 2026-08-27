@@ -24,13 +24,33 @@ class AlarmTool : Tool {
                 putExtra(AlarmClock.EXTRA_SKIP_UI, true)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(intent)
+
+            try {
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                // Fallback without EXTRA_SKIP_UI for OEM devices that restrict silent alarm setting
+                val fallbackIntent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+                    putExtra(AlarmClock.EXTRA_HOUR, hour)
+                    putExtra(AlarmClock.EXTRA_MINUTES, minute)
+                    putExtra(AlarmClock.EXTRA_MESSAGE, "Awaj Assistant Alarm")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                try {
+                    context.startActivity(fallbackIntent)
+                } catch (fallbackEx: Exception) {
+                    // Final fallback: open alarms list
+                    val showIntent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(showIntent)
+                }
+            }
 
             val timeFormatted = String.format(Locale.US, "%02d:%02d", hour, minute)
             val banglaTime = IntentNormalizer.convertEnglishDigitsToBangla(timeFormatted)
             val dayPrefix = if (isTomorrow) "আগামীকাল " else ""
 
-            ToolResult.Success("${dayPrefix}$banglaTime টায় অ্যালার্ম সফলভাবে সেট করা হয়েছে।")
+            ToolResult.Success("${dayPrefix}$banglaTime টায় অ্যালার্ম সেট করা হয়েছে।")
         } catch (e: Exception) {
             ToolResult.Failed("অ্যালার্ম সেট করতে সমস্যা হয়েছে: ${e.localizedMessage}")
         }

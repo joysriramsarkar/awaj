@@ -9,10 +9,14 @@ import kotlin.math.abs
 import kotlin.math.sqrt
 
 /**
- * VoiceProfileManager handles voice biometric enrollment and speaker verification.
+ * VoiceProfileManager provides acoustic voice personalization and wake-word filtering.
  * It extracts acoustic characteristics (RMS energy distribution, zero-crossing rate,
- * and frequency spectrum variance) to ensure only the owner's voice can trigger Awaj
- * when the phone is locked.
+ * and frequency spectrum variance) to tune wake-word sensitivity to the primary owner's voice,
+ * reducing accidental wake-ups from background audio or other voices.
+ *
+ * Security Note: Acoustic feature filtering is intended as a personalization filter, not
+ * as a cryptographic biometric authenticator. High-risk operations (such as calls and messaging)
+ * are always protected by explicit confirmation and system keyguard security.
  */
 class VoiceProfileManager(context: Context) {
 
@@ -33,7 +37,6 @@ class VoiceProfileManager(context: Context) {
     )
 
     init {
-        // Check if previously stored
         if (prefs.getBoolean("voice_enrolled", false)) {
             _isEnrolled.value = true
         }
@@ -100,10 +103,10 @@ class VoiceProfileManager(context: Context) {
     }
 
     /**
-     * Verifies if incoming audio features match the enrolled owner's voice.
+     * Verifies if incoming audio features match the enrolled owner's voice acoustics.
      */
     fun verifySpeaker(incoming: VoiceSampleFeatures): Boolean {
-        if (!_isEnrolled.value) return true // If not enrolled, allow open access
+        if (!_isEnrolled.value) return true // If not enrolled, allow standard wake-up
 
         val profileEnergy = prefs.getFloat("profile_energy", 0f)
         val profileZcr = prefs.getFloat("profile_zcr", 0f)
@@ -115,8 +118,8 @@ class VoiceProfileManager(context: Context) {
         val zcrDiff = abs(incoming.zeroCrossingRate - profileZcr) / (profileZcr.coerceAtLeast(0.01f))
         val roughDiff = abs(incoming.spectralRoughness - profileRough) / (profileRough.coerceAtLeast(1f))
 
-        // If distance is within acceptable biometric tolerance threshold (40% variation allowance)
-        return (zcrDiff < 0.55f && roughDiff < 0.60f)
+        // Distance threshold (allowing reasonable variations for cold/hoarseness)
+        return (zcrDiff < 0.65f && roughDiff < 0.70f)
     }
 
     /**

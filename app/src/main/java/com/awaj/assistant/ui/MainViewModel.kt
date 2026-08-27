@@ -13,6 +13,8 @@ import com.awaj.assistant.stt.SpeechState
 import com.awaj.assistant.stt.SttManager
 import com.awaj.assistant.ui.theme.AppThemeMode
 import com.awaj.assistant.voice.VoiceProfileManager
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -41,25 +43,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val sttManager: SttManager
+    private var autoResetJob: Job? = null
 
     init {
         sttManager = SttManager(application.applicationContext) { recognizedText ->
             processVoiceCommand(recognizedText)
         }
         speechState = sttManager.state
+
+        // Register TTS completion callback to cleanly transition back to Idle
+        appModule.ttsManager.onSpeechCompletedListener = {
+            autoResetJob?.cancel()
+            if (speechState.value is SpeechState.Speaking) {
+                sttManager.setState(SpeechState.Idle)
+            }
+        }
     }
 
     fun toggleListening() {
-        if (speechState.value is SpeechState.Listening) {
-            sttManager.stopListening()
-            appModule.ttsManager.stop()
-        } else {
-            appModule.ttsManager.stop()
-            sttManager.startListening()
+        autoResetJob?.cancel()
+        val current = speechState.value
+
+        when (current) {
+            is SpeechState.Listening -> {
+                sttManager.stopListening()
+                appModule.ttsManager.stop()
+                sttManager.setState(SpeechState.Idle)
+            }
+            is SpeechState.Speaking -> {
+                appModule.ttsManager.stop()
+                sttManager.setState(SpeechState.Idle)
+            }
+            else -> {
+                appModule.ttsManager.stop()
+                sttManager.startListening()
+            }
         }
     }
 
     fun startListeningForWakeWord() {
+        autoResetJob?.cancel()
         appModule.ttsManager.stop()
         sttManager.startListening()
     }
@@ -165,28 +188,42 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         when (result) {
             is ToolResult.Success -> {
-                sttManager.setState(SpeechState.Speaking(result.messageBangla))
-                appModule.ttsManager.speak(result.messageBangla)
+                speakAndScheduleReset(result.messageBangla)
                 logHistory(request, true, result.messageBangla)
             }
             is ToolResult.NeedsConfirmation -> {
                 sttManager.setState(SpeechState.Speaking(result.summaryBangla))
                 appModule.confirmationManager.ask(result.pendingRequest)
-                appModule.ttsManager.speak("${result.summaryBangla}। নিশ্চিত করতে হ্যাঁ অথবা না বলুন।")
+                speakAndScheduleReset("${result.summaryBangla}। নিশ্চিত করতে হ্যাঁ অথবা না বলুন।")
             }
             is ToolResult.Blocked -> {
                 sttManager.setState(SpeechState.Error(result.reasonBangla))
-                appModule.ttsManager.speak(result.reasonBangla)
+                speakAndScheduleReset(result.reasonBangla)
                 logHistory(request, false, result.reasonBangla)
             }
             is ToolResult.Failed -> {
                 sttManager.setState(SpeechState.Error(result.reasonBangla))
-                appModule.ttsManager.speak(result.reasonBangla)
+                speakAndScheduleReset(result.reasonBangla)
                 logHistory(request, false, result.reasonBangla)
             }
             is ToolResult.ClarificationNeeded -> {
                 sttManager.setState(SpeechState.Speaking(result.questionBangla))
-                appModule.ttsManager.speak(result.questionBangla)
+                speakAndScheduleReset(result.questionBangla)
+            }
+        }
+    }
+
+    private fun speakAndScheduleReset(message: String) {
+        sttManager.setState(SpeechState.Speaking(message))
+        appModule.ttsManager.speak(message)
+
+        // Safety fallback timer: reset to Idle after speaking duration even if TTS callback is missed
+        autoResetJob?.cancel()
+        autoResetJob = viewModelScope.launch {
+            val estimatedDurationMs = ((message.length * 95L) + 2000L).coerceAtLeast(3500L)
+            delay(estimatedDurationMs)
+            if (speechState.value is SpeechState.Speaking) {
+                sttManager.setState(SpeechState.Idle)
             }
         }
     }
@@ -208,8 +245,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelPendingAction() {
         appModule.confirmationManager.clear()
         val msg = "কমান্ডটি বাতিল করা হয়েছে।"
-        sttManager.setState(SpeechState.Idle)
-        appModule.ttsManager.speak(msg)
+        speakAndScheduleReset(msg)
         lastResult.value = ToolResult.Success(msg)
     }
 
@@ -256,6 +292,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         super.onCleared()
+        autoResetJob?.cancel()
         sttManager.stopListening()
         appModule.ttsManager.shutdown()
     }

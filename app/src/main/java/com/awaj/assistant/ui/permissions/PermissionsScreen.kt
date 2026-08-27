@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Accessibility
+import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Contacts
@@ -35,7 +36,6 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,7 +48,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,7 +63,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.awaj.assistant.safety.PermissionGate
-import com.awaj.assistant.ui.theme.BrandDanger
 import com.awaj.assistant.ui.theme.BrandPrimary
 import com.awaj.assistant.ui.theme.BrandSecondary
 import com.awaj.assistant.ui.theme.BrandSuccess
@@ -136,6 +134,14 @@ fun PermissionsScreen(
             description = "নিশ্চিতকরণের পর সরাসরি এসএমএস পাঠানোর জন্য।",
             permissionKey = Manifest.permission.SEND_SMS,
             icon = Icons.Filled.Sms
+        ),
+        PermissionItemData(
+            titleBangla = "ব্যাটারি অপ্টিমাইজেশন ছাড় (Keep-Alive)",
+            description = "লক-স্ক্রিনে ব্যাকগ্রাউন্ডে সবসময় 'হেই আওয়াজ' শোনার জন্য স্যামসাং/শাওমি/অপ্পো ডিভাইসে ব্যাটারি সেভার ছাড় দিন।",
+            permissionKey = null,
+            isSpecialSettings = true,
+            settingsAction = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+            icon = Icons.Filled.BatterySaver
         ),
         PermissionItemData(
             titleBangla = "নোটিফিকেশন এক্সেস (Notification Access)",
@@ -259,11 +265,15 @@ fun PermissionsScreen(
                     isGranted = isGranted,
                     onRequest = {
                         if (item.isSpecialSettings && item.settingsAction != null) {
-                            val intent = Intent(item.settingsAction)
-                            if (item.settingsAction == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
-                                intent.data = Uri.parse("package:${context.packageName}")
+                            if (item.settingsAction == Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) {
+                                PermissionGate.requestIgnoreBatteryOptimization(context)
+                            } else {
+                                val intent = Intent(item.settingsAction)
+                                if (item.settingsAction == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
+                                    intent.data = Uri.parse("package:${context.packageName}")
+                                }
+                                context.startActivity(intent)
                             }
-                            context.startActivity(intent)
                         } else if (item.permissionKey != null) {
                             permissionLauncher.launch(arrayOf(item.permissionKey))
                         }
@@ -399,6 +409,7 @@ fun PermissionCard(
 private fun checkPermissionStatus(context: Context, item: PermissionItemData, trigger: Int): Boolean {
     if (item.isSpecialSettings) {
         return when (item.settingsAction) {
+            Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS -> PermissionGate.isIgnoringBatteryOptimizations(context)
             Settings.ACTION_MANAGE_OVERLAY_PERMISSION -> Settings.canDrawOverlays(context)
             Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS -> PermissionGate.isNotificationListenerGranted(context)
             Settings.ACTION_ACCESSIBILITY_SETTINGS -> PermissionGate.isAccessibilityServiceEnabled(context)

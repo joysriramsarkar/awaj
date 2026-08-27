@@ -33,6 +33,10 @@ class CommandRepository(
             resultSummary = summary
         )
         commandLogDao.insertLog(log)
+
+        // Privacy Policy: 30-day auto-retention policy
+        val cutoff30Days = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000)
+        commandLogDao.deleteLogsOlderThan(cutoff30Days)
     }
 
     suspend fun clearHistory() {
