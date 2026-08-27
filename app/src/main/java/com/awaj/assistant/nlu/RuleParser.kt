@@ -438,9 +438,85 @@ class RuleParser {
             )
         }
 
-        // 23. Web Search
-        if (text.contains("সার্চ") || text.contains("খুঁজো") || text.contains("খোঁজ") || text.contains("search") || text.contains("গুগল") || text.contains("খবর") || text.contains("news")) {
-            val query = extractTitleAfterKeywords(rawInput, listOf("সার্চ করো", "সার্চ কর", "খুঁজো", "search for", "গুগল", "খবর"))
+        // 22. Date, Day & Time Inquiries (Direct on-device answer, 0% latency)
+        if (text.contains("কী বার") || text.contains("কি বার") || text.contains("আজকের দিনটি") || text.contains("আজকে কি বার") || text.contains("আজকে কী বার")) {
+            return ActionRequest(
+                action = "get_datetime_info",
+                params = mapOf("type" to "day"),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = "আজকের বার জানা হচ্ছে"
+            )
+        }
+        if (text.contains("তারিখ") || text.contains("কত তারিখ") || text.contains("তারিখ কত") || text.contains("আজকের তারিখ")) {
+            return ActionRequest(
+                action = "get_datetime_info",
+                params = mapOf("type" to "date"),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = "আজকের তারিখ জানা হচ্ছে"
+            )
+        }
+        if (text.contains("কয়টা বাজে") || text.contains("কয়টা বাজে") || text.contains("কটা বাজে") || text.contains("সময় কত") || text.contains("সময় কত") || text.contains("টাইম কত") || text.contains("কয়টা বাজল") || text.contains("কটা বাজল")) {
+            return ActionRequest(
+                action = "get_datetime_info",
+                params = mapOf("type" to "time"),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = "বর্তমান সময় জানা হচ্ছে"
+            )
+        }
+
+        // 23. Direct Conversational Responses
+        if (text.contains("তুমি কে") || text.contains("তোমার নাম কি") || text.contains("তোমার নাম কী") || text.contains("কে তুমি") || text.contains("who are you")) {
+            return ActionRequest(
+                action = "ai_chat",
+                params = mapOf("answer" to "আমি আওয়াজ, আপনার ব্যক্তিগত বাংলা এআই ও ডিভাইস সহকারী।"),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = "আমি আওয়াজ, আপনার ব্যক্তিগত বাংলা এআই ও ডিভাইস সহকারী।"
+            )
+        }
+        if (text.contains("কেমন আছো") || text.contains("কেমন আছেন") || text.contains("কি খবর") || text.contains("কী খবর") || text.contains("how are you")) {
+            return ActionRequest(
+                action = "ai_chat",
+                params = mapOf("answer" to "আমি চমৎকার আছি! আপনাকে কীভাবে সাহায্য করতে পারি বলুন।"),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = "আমি চমৎকার আছি! আপনাকে কীভাবে সাহায্য করতে পারি বলুন।"
+            )
+        }
+        if (text.contains("কৌতুক") || text.contains("জোক্স") || text.contains("হাসাও") || text.contains("joke")) {
+            val joke = "শিক্ষক: বলো তো বল্টু, পৃথিবী গোল কেন? বল্টু: স্যার, গোল না হলে ফুটবল কীভাবে খেলতাম!"
+            return ActionRequest(
+                action = "ai_chat",
+                params = mapOf("answer" to joke),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = joke
+            )
+        }
+        if (text.contains("ধন্যবাদ") || text.contains("থ্যাংক ইউ") || text.contains("থ্যাঙ্কস") || text.contains("thanks") || text.contains("thank you")) {
+            val reply = "আপনাকেও অনেক ধন্যবাদ! যেকোনো প্রয়োজনে আমাকে ডাকবেন।"
+            return ActionRequest(
+                action = "ai_chat",
+                params = mapOf("answer" to reply),
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = reply
+            )
+        }
+
+        // 24. Explicit Web Search (Only when user explicitly asks to search or browse)
+        if (text.contains("গুগলে সার্চ") || text.contains("সার্চ করো") || text.contains("সার্চ কর") || text.contains("search for") || text.contains("খুঁজে দেখো") || text.contains("গুগল করো") || text.contains("খবর দেখো")) {
+            val query = extractTitleAfterKeywords(rawInput, listOf("গুগলে সার্চ করো", "সার্চ করো", "সার্চ কর", "খুঁজে দেখো", "search for", "গুগলে", "খবর"))
             return ActionRequest(
                 action = "web_search",
                 params = mapOf("query" to query.ifEmpty { rawInput }),
@@ -451,14 +527,21 @@ class RuleParser {
             )
         }
 
-        // Fallback to web search
+        // 25. General Knowledge / Question Intent Fallback (Route to AI Q&A rather than blindly opening browser)
+        val isQuestion = rawInput.trim().endsWith("?") || 
+                         text.contains("কী") || text.contains("কি") || text.contains("কেন") || 
+                         text.contains("কে") || text.contains("কোথায়") || text.contains("কবে") || 
+                         text.contains("কাকে") || text.contains("কত") || text.contains("কেমন") || 
+                         text.contains("বলো") || text.contains("বল") || text.contains("কাকে বলে") ||
+                         text.contains("what") || text.contains("who") || text.contains("why") || text.contains("how")
+
         return ActionRequest(
-            action = "web_search",
-            params = mapOf("query" to rawInput),
+            action = "ai_chat",
+            params = mapOf("question" to rawInput),
             risk = RiskLevel.LOW,
             confirmationRequired = false,
             rawQuery = rawInput,
-            summaryBangla = "\"$rawInput\" অনুসন্ধান করা হচ্ছে"
+            summaryBangla = "\"$rawInput\" প্রশ্নের উত্তর প্রস্তুত করা হচ্ছে"
         )
     }
 

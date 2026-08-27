@@ -3,8 +3,11 @@ package com.awaj.assistant
 import com.awaj.assistant.nlu.IntentNormalizer
 import com.awaj.assistant.nlu.RiskLevel
 import com.awaj.assistant.nlu.RuleParser
+import com.awaj.assistant.nlu.ToolResult
 import com.awaj.assistant.safety.RiskClassifier
 import com.awaj.assistant.safety.SensitiveAppBlocker
+import com.awaj.assistant.tools.DateTimeTool
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -38,6 +41,56 @@ class RuleParserTest {
         assertNotNull(time2)
         assertEquals(21, time2?.first)
         assertEquals(30, time2?.second)
+    }
+
+    @Test
+    fun testDateTimeQuestionParsing() {
+        val reqDay = parser.parse("আজকে কী বার?")
+        assertNotNull(reqDay)
+        assertEquals("get_datetime_info", reqDay?.action)
+        assertEquals("day", reqDay?.params?.get("type"))
+
+        val reqDate = parser.parse("আজকে কত তারিখ?")
+        assertNotNull(reqDate)
+        assertEquals("get_datetime_info", reqDate?.action)
+        assertEquals("date", reqDate?.params?.get("type"))
+
+        val reqTime = parser.parse("এখন কয়টা বাজে?")
+        assertNotNull(reqTime)
+        assertEquals("get_datetime_info", reqTime?.action)
+        assertEquals("time", reqTime?.params?.get("type"))
+    }
+
+    @Test
+    fun testConversationalAiChatParsing() {
+        val reqWho = parser.parse("তুমি কে?")
+        assertNotNull(reqWho)
+        assertEquals("ai_chat", reqWho?.action)
+        assertTrue(reqWho?.params?.get("answer")?.toString()?.contains("আওয়াজ") == true)
+
+        val reqHow = parser.parse("কেমন আছো?")
+        assertNotNull(reqHow)
+        assertEquals("ai_chat", reqHow?.action)
+
+        val reqJoke = parser.parse("আমাকে একটি কৌতুক শোনাও")
+        assertNotNull(reqJoke)
+        assertEquals("ai_chat", reqJoke?.action)
+    }
+
+    @Test
+    fun testDateTimeToolExecution() = runBlocking {
+        val dtTool = DateTimeTool()
+        val dummyContext = android.content.ContextWrapper(null)
+
+        val resDay = dtTool.execute(dummyContext, mapOf("type" to "day"))
+        assertTrue(resDay is ToolResult.Success)
+        val msgDay = (resDay as ToolResult.Success).messageBangla
+        assertTrue(msgDay.contains("আজ"))
+
+        val resTime = dtTool.execute(dummyContext, mapOf("type" to "time"))
+        assertTrue(resTime is ToolResult.Success)
+        val msgTime = (resTime as ToolResult.Success).messageBangla
+        assertTrue(msgTime.contains("এখন") && msgTime.contains("টা"))
     }
 
     @Test

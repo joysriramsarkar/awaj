@@ -25,6 +25,7 @@ class ToolRegistry(
         register(VolumeTool())
         register(BrightnessTool())
         register(CalendarTool())
+        register(DateTimeTool())
         register(MediaControlTool())
         register(SettingsTool())
         register(WebSearchTool())

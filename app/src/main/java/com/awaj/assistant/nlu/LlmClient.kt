@@ -24,6 +24,8 @@ class LlmClient(
         this.apiKey = key
     }
 
+    fun hasApiKey(): Boolean = apiKey.isNotBlank()
+
     /**
      * Answers any general knowledge, science, literature, daily query or conversational prompt in natural Bengali.
      */

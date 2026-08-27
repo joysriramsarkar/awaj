@@ -12,6 +12,8 @@ import com.awaj.assistant.nlu.ToolResult
 import com.awaj.assistant.stt.SpeechState
 import com.awaj.assistant.stt.SttManager
 import com.awaj.assistant.ui.theme.AppThemeMode
+import com.awaj.assistant.voice.LiveVoiceEnrollmentRecorder
+import com.awaj.assistant.voice.VoiceService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +40,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val isVoiceEnrolled = appModule.voiceProfileManager.isEnrolled
     val voiceEnrollmentStep = appModule.voiceProfileManager.enrollmentStep
 
+    val isRecordingVoiceSample = MutableStateFlow(false)
+    val voiceEnrollmentProgress = MutableStateFlow(0f)
+    val voiceEnrollmentDb = MutableStateFlow(0f)
+
     val agentLiveReasoning = appModule.agentLoop.liveReasoning
     val isAgentRunning = appModule.agentLoop.isRunning
 
@@ -45,6 +51,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val sttManager: SttManager
+    private val voiceRecorder = LiveVoiceEnrollmentRecorder(application.applicationContext, appModule.voiceProfileManager)
     private var autoResetJob: Job? = null
 
     init {
@@ -89,9 +96,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         sttManager.startListening()
     }
 
-    fun enrollVoiceSample(): Int {
-        val testBuffer = ShortArray(1600) { ((Math.sin(it.toDouble() * 0.1) * 1500) + ((0..200).random())).toInt().toShort() }
-        return appModule.voiceProfileManager.addEnrollmentSample(testBuffer, testBuffer.size)
+    fun recordRealVoiceSample(
+        onSuccess: (step: Int) -> Unit,
+        onError: (message: String) -> Unit
+    ) {
+        if (isRecordingVoiceSample.value) return
+
+        viewModelScope.launch {
+            isRecordingVoiceSample.value = true
+            voiceEnrollmentProgress.value = 0f
+
+            val result = voiceRecorder.recordEnrollmentSample { progress, db ->
+                voiceEnrollmentProgress.value = progress
+                voiceEnrollmentDb.value = db
+            }
+
+            isRecordingVoiceSample.value = false
+            voiceEnrollmentProgress.value = 0f
+
+            result.onSuccess { step ->
+                if (step >= 3) {
+                    // Auto start background voice service once enrolled
+                    try {
+                        VoiceService.start(getApplication())
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    speakAndScheduleReset("আপনার কণ্ঠস্বর সফলভাবে সেভ করা হয়েছে। এখন লক থাকা অবস্থাতেও হেই আওয়াজ শুনলে আমি সাড়া দেব।")
+                } else {
+                    speakAndScheduleReset("নমুনা $step গৃহীত হয়েছে। পরবর্তী নমুনা রেকর্ড করতে আবার চাপুন।")
+                }
+                onSuccess(step)
+            }.onFailure { error ->
+                val errorMsg = error.localizedMessage ?: "রেকর্ডিং ব্যর্থ হয়েছে।"
+                speakAndScheduleReset(errorMsg)
+                onError(errorMsg)
+            }
+        }
     }
 
     fun resetVoiceProfile() {
@@ -144,29 +185,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 request = appModule.ruleParser.parse(text)
             }
 
-            // 3. If RuleParser fell back to web_search, try Gemini AI Q&A
-            if (request?.action == "web_search" && appModule.preferenceRepository.geminiApiKey.value.isNotBlank()) {
-                try {
-                    val aiResponse = appModule.llmClient.askAiQuestion(text)
-                    if (!aiResponse.isNullOrBlank()) {
-                        request = ActionRequest(
-                            action = "ai_chat",
-                            params = mapOf("answer" to aiResponse),
-                            risk = RiskLevel.LOW,
-                            confirmationRequired = false,
-                            rawQuery = text,
-                            summaryBangla = aiResponse
-                        )
+            // 3. If RuleParser matched ai_chat without direct answer, ask Gemini or fallback to on-device knowledge
+            if (request?.action == "ai_chat" && !request.params.containsKey("answer")) {
+                val question = request.params["question"]?.toString() ?: text
+                if (appModule.preferenceRepository.geminiApiKey.value.isNotBlank()) {
+                    try {
+                        val aiResponse = appModule.llmClient.askAiQuestion(question)
+                        if (!aiResponse.isNullOrBlank()) {
+                            request = ActionRequest(
+                                action = "ai_chat",
+                                params = mapOf("answer" to aiResponse),
+                                risk = RiskLevel.LOW,
+                                confirmationRequired = false,
+                                rawQuery = text,
+                                summaryBangla = aiResponse
+                            )
+                        }
+                    } catch (e: Exception) {
+                        // Keep request as ai_chat to let AiChatTool provide on-device Bengali answer
                     }
-                } catch (e: Exception) {
-                    // Offline fallback
                 }
             }
 
             if (request == null) {
                 val isOnline = appModule.preferenceRepository.geminiApiKey.value.isNotBlank()
                 val errorMsg = if (!isOnline) {
-                    "অফলাইন মোড সক্রিয়। সহজ কমান্ড বলুন, যেমন: টর্চ জ্বালাও, অ্যালার্ম দাও, বা গান চালাও।"
+                    "অফলাইন মোড সক্রিয়। সহজ কমান্ড বলুন, যেমন: টর্চ জ্বালাও, আজকের তারিখ কত, অ্যালার্ম দাও, বা গান চালাও।"
                 } else {
                     "কমান্ডটি বুঝতে পারিনি। পুনরায় বলুন।"
                 }

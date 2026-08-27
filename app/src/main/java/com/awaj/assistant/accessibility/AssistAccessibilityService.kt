@@ -58,4 +58,28 @@ class AssistAccessibilityService : AccessibilityService() {
         GestureDispatcher.clickElementBounds(this, target.bounds, onComplete)
         return true
     }
+
+    fun toggleSwitchByKeywords(keywords: List<String>): Boolean {
+        val elements = getCurrentScreenElements()
+        for (kw in keywords) {
+            val target = elements.firstOrNull { 
+                it.text.contains(kw, ignoreCase = true) || 
+                it.contentDescription?.contains(kw, ignoreCase = true) == true 
+            }
+            if (target != null) {
+                if (target.nodeRef != null && target.nodeRef.isClickable) {
+                    target.nodeRef.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                    return true
+                } else {
+                    GestureDispatcher.clickElementBounds(this, target.bounds, null)
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    fun goBack() {
+        performGlobalAction(GLOBAL_ACTION_BACK)
+    }
 }

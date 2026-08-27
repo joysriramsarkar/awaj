@@ -96,6 +96,8 @@ fun SettingsScreen(
 
     val isVoiceEnrolled by viewModel.isVoiceEnrolled.collectAsState()
     val voiceEnrollmentStep by viewModel.voiceEnrollmentStep.collectAsState()
+    val isRecordingVoiceSample by viewModel.isRecordingVoiceSample.collectAsState()
+    val voiceEnrollmentProgress by viewModel.voiceEnrollmentProgress.collectAsState()
 
     var apiKeyInput by remember(savedApiKey) { mutableStateOf(savedApiKey) }
     var isApiKeyVisible by remember { mutableStateOf(false) }
@@ -401,37 +403,63 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 if (!isVoiceEnrolled) {
+                    val statusText = if (isRecordingVoiceSample) {
+                        "🔴 রেকর্ড হচ্ছে... স্পষ্ট কণ্ঠে বলুন 'হেই আওয়াজ'"
+                    } else {
+                        "এনরোলমেন্ট ধাপ: $voiceEnrollmentStep / ৩ (স্পষ্টভাবে ‘হেই আওয়াজ’ বলুন)"
+                    }
+
                     Text(
-                        text = "এনরোলমেন্ট ধাপ: $voiceEnrollmentStep / ৩ (স্পষ্টভাবে ‘হেই আওয়াজ’ বলুন)",
+                        text = statusText,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BrandPrimary
+                        color = if (isRecordingVoiceSample) BrandDanger else BrandPrimary
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     LinearProgressIndicator(
-                        progress = { voiceEnrollmentStep / 3f },
+                        progress = { if (isRecordingVoiceSample) voiceEnrollmentProgress else (voiceEnrollmentStep / 3f) },
                         modifier = Modifier.fillMaxWidth().height(6.dp),
-                        color = BrandPrimary,
+                        color = if (isRecordingVoiceSample) BrandDanger else BrandPrimary,
                         trackColor = borderColor,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
                         onClick = {
-                            val nextStep = viewModel.enrollVoiceSample()
-                            if (nextStep >= 3) {
-                                Toast.makeText(context, "ভয়েস প্রোফাইল সফলভাবে তৈরি হয়েছে!", Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "নমুনা $nextStep/৩ গৃহীত হয়েছে। আবার বলুন।", Toast.LENGTH_SHORT).show()
+                            if (!isRecordingVoiceSample) {
+                                viewModel.recordRealVoiceSample(
+                                    onSuccess = { step ->
+                                        if (step >= 3) {
+                                            Toast.makeText(context, "ভয়েস প্রোফাইল সফলভাবে তৈরি হয়েছে!", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "নমুনা $step/৩ সেভ হয়েছে! পরবর্তী নমুনা রেকর্ড করুন।", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onError = { error ->
+                                        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                    }
+                                )
                             }
                         },
+                        enabled = !isRecordingVoiceSample,
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isRecordingVoiceSample) BrandDanger else BrandPrimary
+                        )
                     ) {
-                        Icon(Icons.Filled.Mic, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(
+                            imageVector = Icons.Filled.Mic,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (voiceEnrollmentStep == 0) "ভয়েস নমুনা রেকর্ড শুরু করুন" else "পরবর্তী নমুনা রেকর্ড করুন ($voiceEnrollmentStep/৩)",
+                            text = when {
+                                isRecordingVoiceSample -> "শুনছি... কথা বলুন..."
+                                voiceEnrollmentStep == 0 -> "ভয়েস নমুনা রেকর্ড শুরু করুন"
+                                else -> "পরবর্তী নমুনা রেকর্ড করুন ($voiceEnrollmentStep/৩)"
+                            },
                             fontSize = 11.sp,
                             color = Color.White
                         )
