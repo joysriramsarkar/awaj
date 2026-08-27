@@ -9,7 +9,8 @@ object RiskClassifier {
     private val blockedKeywords = listOf(
         "টাকা পাঠাও", "টাকা পাঠাতে", "সেন্ড মানি", "ক্যাশ আউট", "পাসওয়ার্ড", "password",
         "pin", "পিন নম্বর", "পিন কোড", "otp", "ওটিপি", "cvv", "ব্যাংক ট্রান্সফার",
-        "delete account", "ফ্যাক্টরি রিসেট", "format phone", "সব ডিলিট"
+        "delete account", "ফ্যাক্টরি রিসেট", "format phone", "সব ডিলিট",
+        "টাকা ট্রান্সফার", "পেমেন্ট করো", "পেমেন্ট কর", "ইউপিআই পিন", "upi pin"
     )
 
     private val highRiskActions = setOf(
@@ -29,7 +30,12 @@ object RiskClassifier {
     fun evaluateRisk(request: ActionRequest): RiskLevel {
         val query = request.rawQuery.lowercase(Locale.getDefault())
 
-        // Check if query contains forbidden automated operations
+        // 1. Check if financial transfer or credential input intent
+        if (SensitiveAppBlocker.containsFinancialTransferIntent(query)) {
+            return RiskLevel.BLOCKED
+        }
+
+        // 2. Check forbidden destructive system operations
         for (kw in blockedKeywords) {
             if (query.contains(kw)) {
                 return RiskLevel.BLOCKED

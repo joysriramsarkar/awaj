@@ -1,5 +1,6 @@
 package com.awaj.assistant.ui.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,7 +33,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +45,7 @@ import com.awaj.assistant.ui.components.ActionCard
 import com.awaj.assistant.ui.components.ConfirmationDialog
 import com.awaj.assistant.ui.components.GlowingMicOrb
 import com.awaj.assistant.ui.components.SuggestionChips
+import com.awaj.assistant.ui.theme.BrandDanger
 import com.awaj.assistant.ui.theme.BrandPrimary
 import com.awaj.assistant.ui.theme.BrandSecondary
 import com.awaj.assistant.ui.theme.BrandSuccess
@@ -57,15 +64,15 @@ fun HomeScreen(
     val lastRisk by viewModel.lastRisk.collectAsState()
     val pendingConfirmation by viewModel.pendingConfirmation.collectAsState()
     val currentMode by viewModel.currentMode.collectAsState()
+    val agentReasoning by viewModel.agentLiveReasoning.collectAsState()
+    val isAgentRunning by viewModel.isAgentRunning.collectAsState()
 
     val textColor = MaterialTheme.colorScheme.onBackground
-    val bgColor = MaterialTheme.colorScheme.background
-    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
 
-    // Confirmation dialog if pending
-    pendingConfirmation?.let { request ->
+    // Two-way Confirmation Modal
+    if (pendingConfirmation != null) {
         ConfirmationDialog(
-            request = request,
+            request = pendingConfirmation!!,
             onConfirm = { viewModel.confirmPendingAction() },
             onDismiss = { viewModel.cancelPendingAction() }
         )
@@ -74,18 +81,14 @@ fun HomeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(bgColor, surfaceVariant.copy(alpha = 0.35f))
-                )
-            )
-            .padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState()),
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Top App Bar / Header
+        // Top Header
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -135,7 +138,61 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(30.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Live Agent Reasoning Banner (Lab Mode)
+        if (isAgentRunning && agentReasoning.isNotBlank()) {
+            Card(
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                border = BorderStroke(1.dp, BrandWarning.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Psychology,
+                                contentDescription = null,
+                                tint = BrandWarning,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "ল্যাব এজেন্ট লাইভ থট ও প্রসেসিং",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = BrandWarning
+                            )
+                        }
+
+                        Button(
+                            onClick = { viewModel.emergencyStopAgent() },
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandDanger),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(Icons.Filled.Stop, contentDescription = null, tint = Color.White, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("থামুন", fontSize = 11.sp, color = Color.White)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = agentReasoning,
+                        fontSize = 12.sp,
+                        color = textColor,
+                        lineHeight = 17.sp
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+        }
 
         // Status text
         val statusText = when (speechState) {
@@ -190,41 +247,21 @@ fun HomeScreen(
                 parsedAction = lastAction.ifBlank { "AI ASSISTANT" },
                 riskLevel = lastRisk,
                 resultSummary = resultSummary,
-                isSuccess = isSuccess
+                isSuccess = isSuccess,
+                modifier = Modifier.fillMaxWidth()
             )
 
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Suggestions Title
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Filled.AutoAwesome,
-                contentDescription = null,
-                tint = BrandSecondary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "প্রস্তাবিত কমান্ড ও প্রশ্নসমূহ",
-                style = MaterialTheme.typography.titleMedium,
-                color = textColor,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
         // Suggestion Chips
         SuggestionChips(
             onSelectSuggestion = { command ->
                 viewModel.processVoiceCommand(command)
-            }
+            },
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(36.dp))
     }
 }

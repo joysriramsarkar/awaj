@@ -18,9 +18,10 @@ class VolumeTool : Tool {
 
         val streamType = AudioManager.STREAM_MUSIC
         val maxVolume = audioManager.getStreamMaxVolume(streamType)
+        val prevVolume = audioManager.getStreamVolume(streamType)
 
         return try {
-            when (direction) {
+            val result = when (direction) {
                 "mute" -> {
                     audioManager.setStreamVolume(streamType, 0, AudioManager.FLAG_SHOW_UI)
                     ToolResult.Success("ভলিউম নিঃশব্দ (Mute) করা হয়েছে।")
@@ -51,8 +52,25 @@ class VolumeTool : Tool {
                 }
                 else -> ToolResult.Success("ভলিউম সমন্বয় করা হয়েছে।")
             }
+
+            if (result is ToolResult.Success) {
+                UndoRegistry.recordUndoableAction("ভলিউম পরিবর্তন") {
+                    try {
+                        audioManager.setStreamVolume(streamType, prevVolume, AudioManager.FLAG_SHOW_UI)
+                        val prevPct = (prevVolume * 100) / maxVolume
+                        val banglaPrev = IntentNormalizer.convertEnglishDigitsToBangla(prevPrev(prevPct).toString())
+                        ToolResult.Success("ভলিউম পূর্বাবস্থায় ($banglaPrev%) ফিরিয়ে নেওয়া হয়েছে।")
+                    } catch (e: Exception) {
+                        ToolResult.Failed("ভলিউম রিভার্ট করা সম্ভব হয়নি।")
+                    }
+                }
+            }
+
+            result
         } catch (e: Exception) {
             ToolResult.Failed("ভলিউম পরিবর্তন করতে সমস্যা হয়েছে: ${e.localizedMessage}")
         }
     }
+
+    private fun prevPrev(pct: Int): Int = pct.coerceIn(0, 100)
 }

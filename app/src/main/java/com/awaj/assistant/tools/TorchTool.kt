@@ -33,6 +33,17 @@ class TorchTool : Tool {
             cameraManager.setTorchMode(cameraId, newState)
             isTorchOn = newState
 
+            // Record undo action
+            UndoRegistry.recordUndoableAction(if (newState) "টর্চ বন্ধ করা" else "টর্চ জ্বালানো") {
+                try {
+                    cameraManager.setTorchMode(cameraId, !newState)
+                    isTorchOn = !newState
+                    ToolResult.Success(if (!newState) "টর্চ জ্বালানো হয়েছে।" else "টর্চ বন্ধ করা হয়েছে।")
+                } catch (e: Exception) {
+                    ToolResult.Failed("টর্চ রিভার্ট করা সম্ভব হয়নি।")
+                }
+            }
+
             if (newState) {
                 ToolResult.Success("টর্চ জ্বালানো হয়েছে।")
             } else {

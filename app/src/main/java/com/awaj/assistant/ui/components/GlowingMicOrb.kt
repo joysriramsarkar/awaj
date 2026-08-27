@@ -26,6 +26,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.awaj.assistant.stt.SpeechState
 import com.awaj.assistant.ui.theme.BrandDanger
@@ -57,6 +61,13 @@ fun GlowingMicOrb(
     val isProcessing = state is SpeechState.Processing
     val isSpeaking = state is SpeechState.Speaking
 
+    val accessibilityDesc = when {
+        isListening -> "কথা বলুন, সহকারী এখন শুনছে। থামাতে ট্যাপ করুন।"
+        isProcessing -> "আপনার নির্দেশ প্রসেস করা হচ্ছে। অনুগ্রহ করে অপেক্ষা করুন।"
+        isSpeaking -> "সহকারী উত্তর দিচ্ছে। থামানোর জন্য ট্যাপ করুন।"
+        else -> "ভয়েস সহকারী চালু করতে ট্যাপ করুন।"
+    }
+
     val outerGlowColor = when {
         isListening -> GlowTeal.copy(alpha = 0.35f)
         isProcessing -> GlowPurple.copy(alpha = 0.35f)
@@ -81,7 +92,12 @@ fun GlowingMicOrb(
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(160.dp)
+        modifier = modifier
+            .size(160.dp)
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = accessibilityDesc
+            }
     ) {
         // Outer pulsing ring
         if (isListening || isProcessing || isSpeaking) {
@@ -124,7 +140,7 @@ fun GlowingMicOrb(
                     isSpeaking -> Icons.Filled.Stop
                     else -> Icons.Filled.Mic
                 },
-                contentDescription = "মাইক বাটন",
+                contentDescription = null, // Handled by parent container semantics
                 tint = TextPrimary,
                 modifier = Modifier.size(40.dp)
             )

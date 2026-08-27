@@ -12,7 +12,6 @@ import com.awaj.assistant.nlu.ToolResult
 import com.awaj.assistant.stt.SpeechState
 import com.awaj.assistant.stt.SttManager
 import com.awaj.assistant.ui.theme.AppThemeMode
-import com.awaj.assistant.voice.VoiceProfileManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +37,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val isVoiceEnrolled = appModule.voiceProfileManager.isEnrolled
     val voiceEnrollmentStep = appModule.voiceProfileManager.enrollmentStep
+
+    val agentLiveReasoning = appModule.agentLoop.liveReasoning
+    val isAgentRunning = appModule.agentLoop.isRunning
 
     val commandLogs: StateFlow<List<CommandLog>> = appModule.commandRepository.allLogs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -88,16 +90,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun enrollVoiceSample(): Int {
-        val sample = VoiceProfileManager.VoiceSampleFeatures(
-            avgEnergy = (1200..1800).random().toFloat(),
-            zeroCrossingRate = 0.12f,
-            spectralRoughness = 45f
-        )
-        return appModule.voiceProfileManager.addEnrollmentSample(sample)
+        val testBuffer = ShortArray(1600) { ((Math.sin(it.toDouble() * 0.1) * 1500) + ((0..200).random())).toInt().toShort() }
+        return appModule.voiceProfileManager.addEnrollmentSample(testBuffer, testBuffer.size)
     }
 
     fun resetVoiceProfile() {
         appModule.voiceProfileManager.resetProfile()
+    }
+
+    fun emergencyStopAgent() {
+        appModule.agentLoop.emergencyStop()
     }
 
     fun setThemeMode(mode: AppThemeMode) {
@@ -127,33 +129,48 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             var request: ActionRequest? = null
 
-            // 1. If Gemini API Key is available, parse with Gemini LLM for smart Q&A + Multi-intent
+            // 1. Try Gemini LLM for smart Q&A + Multi-intent if API Key is available
             if (appModule.preferenceRepository.geminiApiKey.value.isNotBlank()) {
-                request = appModule.llmClient.parseComplexCommand(text)
+                try {
+                    request = appModule.llmClient.parseComplexCommand(text)
+                } catch (e: Exception) {
+                    // Graceful fallback to on-device RuleParser when offline / network error
+                    request = null
+                }
             }
 
-            // 2. Fallback to fast on-device Rule Parser
+            // 2. Fast on-device Rule Parser (100% Offline)
             if (request == null) {
                 request = appModule.ruleParser.parse(text)
             }
 
-            // 3. If RuleParser fell back to web_search, but user asked an AI question and has Gemini
+            // 3. If RuleParser fell back to web_search, try Gemini AI Q&A
             if (request?.action == "web_search" && appModule.preferenceRepository.geminiApiKey.value.isNotBlank()) {
-                val aiResponse = appModule.llmClient.askAiQuestion(text)
-                if (!aiResponse.isNullOrBlank()) {
-                    request = ActionRequest(
-                        action = "ai_chat",
-                        params = mapOf("answer" to aiResponse),
-                        risk = RiskLevel.LOW,
-                        confirmationRequired = false,
-                        rawQuery = text,
-                        summaryBangla = aiResponse
-                    )
+                try {
+                    val aiResponse = appModule.llmClient.askAiQuestion(text)
+                    if (!aiResponse.isNullOrBlank()) {
+                        request = ActionRequest(
+                            action = "ai_chat",
+                            params = mapOf("answer" to aiResponse),
+                            risk = RiskLevel.LOW,
+                            confirmationRequired = false,
+                            rawQuery = text,
+                            summaryBangla = aiResponse
+                        )
+                    }
+                } catch (e: Exception) {
+                    // Offline fallback
                 }
             }
 
             if (request == null) {
-                val errorResult = ToolResult.Failed("কমান্ডটি বুঝতে পারিনি। পুনরায় বলুন।")
+                val isOnline = appModule.preferenceRepository.geminiApiKey.value.isNotBlank()
+                val errorMsg = if (!isOnline) {
+                    "অফলাইন মোড সক্রিয়। সহজ কমান্ড বলুন, যেমন: টর্চ জ্বালাও, অ্যালার্ম দাও, বা গান চালাও।"
+                } else {
+                    "কমান্ডটি বুঝতে পারিনি। পুনরায় বলুন।"
+                }
+                val errorResult = ToolResult.Failed(errorMsg)
                 handleResult(request, errorResult)
                 return@launch
             }

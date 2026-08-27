@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.sqrt
 
 class WakeWordDetector(
     private val context: Context,
@@ -41,7 +42,7 @@ class WakeWordDetector(
     }
 
     /**
-     * Continuous background acoustic energy and wake-word trigger listener with voice biometric verification.
+     * Continuous background acoustic energy and wake-word trigger listener with personalized acoustic filter.
      */
     @SuppressLint("MissingPermission")
     fun startContinuousListening() {
@@ -75,27 +76,29 @@ class WakeWordDetector(
                 while (isActive && _isListening.value) {
                     val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (read > 0) {
-                        // Extract acoustic features
-                        val features = voiceProfileManager?.extractFeatures(buffer, read)
-                        val avgEnergy = features?.avgEnergy ?: 0f
+                        var sumSquare = 0.0
+                        for (i in 0 until read) {
+                            sumSquare += buffer[i] * buffer[i]
+                        }
+                        val rms = sqrt(sumSquare / read)
 
                         // Convert energy to dB
-                        val db = if (avgEnergy > 1f) 20 * Math.log10(avgEnergy.toDouble()) else 0.0
+                        val db = if (rms > 1.0) 20 * Math.log10(rms) else 0.0
 
                         // Voice activity detection threshold (above ~50dB)
-                        if (db > 50.0) {
+                        if (db > 48.0) {
                             soundBurstCount++
                             if (soundBurstCount >= 3) {
                                 soundBurstCount = 0
 
-                                // Verify speaker biometric identity if profile is enrolled
-                                val isOwnerVerified = if (voiceProfileManager != null && features != null) {
-                                    voiceProfileManager.verifySpeaker(features)
+                                // Check personalized acoustic embedding similarity
+                                val isPersonalMatch = if (voiceProfileManager != null && voiceProfileManager.isEnrolled.value) {
+                                    voiceProfileManager.verifySpeaker(buffer, read)
                                 } else {
                                     true
                                 }
 
-                                if (isOwnerVerified) {
+                                if (isPersonalMatch) {
                                     onWakeWordDetected("হেই আওয়াজ")
                                 }
                             }

@@ -8,7 +8,7 @@ import java.util.Locale
  */
 object SensitiveAppBlocker {
 
-    private val blockedPackagePrefixes = listOf(
+    private val staticBlockedPrefixes = mutableSetOf(
         // Indian UPI & Payment Apps
         "com.google.android.apps.nbu.paisa.user", // Google Pay (GPay)
         "com.phonepe.app",                        // PhonePe
@@ -17,9 +17,10 @@ object SensitiveAppBlocker {
         "com.dreamplug.androidapp",               // CRED
         "com.mobikwik_new",                       // MobiKwik
         "com.freecharge.android",                 // Freecharge
-        "com.sbi.lotusintouch",                   // YONO SBI
-        "com.csam.icici.bank.imobile",            // iMobile ICICI
-        "com.snapwork.hdfc",                      // HDFC Bank
+        "com.sbi",                                // YONO SBI & SBI Card
+        "com.csam.icici",                         // iMobile ICICI
+        "com.hdfc",                               // HDFC Bank
+        "com.snapwork.hdfc",                      // HDFC MobileBanking
         "com.axis.mobile",                        // Axis Mobile
         "com.msf.kbank.mobile",                   // Kotak 811
         "com.pnb.one",                            // PNB ONE
@@ -33,7 +34,7 @@ object SensitiveAppBlocker {
         "com.bkash",
         "com.bKash",
         "com.konasl.nagad",
-        "com.dbbl.mwallet",
+        "com.dbbl",
         "com.upay.customer",
         "com.ibbl.cellfin",
         "com.citybank.citytouch",
@@ -50,8 +51,10 @@ object SensitiveAppBlocker {
         "com.binance.dev"
     )
 
+    private val dynamicCustomBlockedPrefixes = mutableSetOf<String>()
+
     private val financialTransferKeywords = listOf(
-        "টাকা পাঠাও", "টাকা পাঠাও", "টাকা ট্রান্সফার", "টাকা সেন্ড", "সেন্ড মানি", "send money",
+        "টাকা পাঠাও", "টাকা পাঠাতে", "টাকা ট্রান্সফার", "টাকা সেন্ড", "সেন্ড মানি", "send money",
         "পেমেন্ট করো", "পেমেন্ট কর", "make payment", "pay money", "transfer money",
         "ইউপিআই পিন", "upi pin", "পিন কোড", "pin code",
         "ওটিপি", "otp", "cvv", "সিভিভি", "পাসওয়ার্ড", "password",
@@ -60,13 +63,19 @@ object SensitiveAppBlocker {
 
     fun isPackageBlocked(packageName: String): Boolean {
         val lowerPkg = packageName.lowercase(Locale.getDefault())
-        return blockedPackagePrefixes.any { lowerPkg.startsWith(it.lowercase(Locale.getDefault())) }
+        val allPrefixes = staticBlockedPrefixes + dynamicCustomBlockedPrefixes
+        return allPrefixes.any { lowerPkg.startsWith(it.lowercase(Locale.getDefault())) }
+    }
+
+    /**
+     * Adds custom package prefixes (e.g. from local/remote config sync).
+     */
+    fun registerCustomBlockedPackages(packages: Collection<String>) {
+        dynamicCustomBlockedPrefixes.addAll(packages)
     }
 
     /**
      * Checks if user is requesting automated money transfer or credential input.
-     * Note: Pure manual app opening ("গুগল পে খোলো") is allowed via Intent for the human user,
-     * but any financial transaction or screen automation is strictly blocked.
      */
     fun containsFinancialTransferIntent(text: String): Boolean {
         val lower = text.lowercase(Locale.getDefault())

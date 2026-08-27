@@ -22,6 +22,37 @@ class RuleParser {
             )
         }
 
+        // 1.1 Action Undo ("ভুল হয়ে গেছে, বাতিল করো", "আগেরটা ফেরত নাও", "আনডু")
+        if (text.contains("ভুল হয়ে গেছে") || text.contains("আগেরটা বাতিল") || text.contains("আগেরটা ফেরত") || text.contains("আনডু") || text.contains("undo")) {
+            return ActionRequest(
+                action = "undo_action",
+                risk = RiskLevel.LOW,
+                confirmationRequired = false,
+                rawQuery = rawInput,
+                summaryBangla = "পূর্ববর্তী কাজ বাতিল করার চেষ্টা করা হচ্ছে"
+            )
+        }
+
+        // 1.2 Official Carrier USSD Balance Dial Shortcut
+        if (text.contains("ব্যালেন্স") || text.contains("টাকা কত আছে") || text.contains("balance check")) {
+            val ussdCode = when {
+                text.contains("গ্রামীণ") || text.contains("gp") || text.contains("grameen") -> "*566#"
+                text.contains("বাংলালিংক") || text.contains("banglalink") || text.contains("bl") -> "*124#"
+                text.contains("রবি") || text.contains("robi") || text.contains("এয়ারটেল") || text.contains("airtel") -> "*778#"
+                text.contains("টেলিটক") || text.contains("teletalk") -> "*152#"
+                text.contains("জিও") || text.contains("jio") -> "*333#"
+                else -> "*121#"
+            }
+            return ActionRequest(
+                action = "make_call",
+                params = mapOf("contact" to "অফিসিয়াল ব্যালেন্স USSD ($ussdCode)", "number" to ussdCode),
+                risk = RiskLevel.HIGH,
+                confirmationRequired = true,
+                rawQuery = rawInput,
+                summaryBangla = "মোবাইল ব্যালেন্স চেক করতে $ussdCode ডায়াল করা হবে"
+            )
+        }
+
         // 2. Hotspot & Tethering
         if (text.contains("হটস্পট") || text.contains("hotspot") || text.contains("টেথারিং")) {
             val state = when {
