@@ -1,7 +1,6 @@
 package com.awaj.assistant.ui
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.awaj.assistant.AwajApplication
@@ -12,6 +11,7 @@ import com.awaj.assistant.nlu.RiskLevel
 import com.awaj.assistant.nlu.ToolResult
 import com.awaj.assistant.stt.SpeechState
 import com.awaj.assistant.stt.SttManager
+import com.awaj.assistant.ui.theme.AppThemeMode
 import com.awaj.assistant.voice.VoiceProfileManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +31,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val lastRisk = MutableStateFlow(RiskLevel.LOW)
     val pendingConfirmation = appModule.confirmationManager.pendingRequest
     val currentMode = appModule.preferenceRepository.currentMode
+    val themeMode = appModule.preferenceRepository.themeMode
     val geminiApiKey = appModule.preferenceRepository.geminiApiKey
 
     val isVoiceEnrolled = appModule.voiceProfileManager.isEnrolled
@@ -64,7 +65,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun enrollVoiceSample(): Int {
-        // Generate calibrated acoustic sample
         val sample = VoiceProfileManager.VoiceSampleFeatures(
             avgEnergy = (1200..1800).random().toFloat(),
             zeroCrossingRate = 0.12f,
@@ -75,6 +75,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetVoiceProfile() {
         appModule.voiceProfileManager.resetProfile()
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        appModule.preferenceRepository.setThemeMode(mode)
     }
 
     fun processVoiceCommand(text: String) {
@@ -98,17 +102,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             sttManager.setState(SpeechState.Processing)
 
-            // 1. Check if LLM is enabled and configured for complex commands
             var request: ActionRequest? = null
-            if (appModule.preferenceRepository.useLlmForComplexCommands.value &&
-                appModule.preferenceRepository.geminiApiKey.value.isNotBlank()
-            ) {
+
+            // 1. If Gemini API Key is available, parse with Gemini LLM for smart Q&A + Multi-intent
+            if (appModule.preferenceRepository.geminiApiKey.value.isNotBlank()) {
                 request = appModule.llmClient.parseComplexCommand(text)
             }
 
-            // 2. Fallback to ultra-fast on-device Rule Parser
+            // 2. Fallback to fast on-device Rule Parser
             if (request == null) {
                 request = appModule.ruleParser.parse(text)
+            }
+
+            // 3. If RuleParser fell back to web_search, but user asked an AI question and has Gemini
+            if (request?.action == "web_search" && appModule.preferenceRepository.geminiApiKey.value.isNotBlank()) {
+                val aiResponse = appModule.llmClient.askAiQuestion(text)
+                if (!aiResponse.isNullOrBlank()) {
+                    request = ActionRequest(
+                        action = "ai_chat",
+                        params = mapOf("answer" to aiResponse),
+                        risk = RiskLevel.LOW,
+                        confirmationRequired = false,
+                        rawQuery = text,
+                        summaryBangla = aiResponse
+                    )
+                }
             }
 
             if (request == null) {

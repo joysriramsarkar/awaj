@@ -38,11 +38,7 @@ import com.awaj.assistant.routines.Routine
 import com.awaj.assistant.ui.MainViewModel
 import com.awaj.assistant.ui.theme.BrandPrimary
 import com.awaj.assistant.ui.theme.BrandSecondary
-import com.awaj.assistant.ui.theme.DarkBackground
-import com.awaj.assistant.ui.theme.DarkSurfaceCard
 import com.awaj.assistant.ui.theme.TextMuted
-import com.awaj.assistant.ui.theme.TextPrimary
-import com.awaj.assistant.ui.theme.TextSecondary
 
 @Composable
 fun RoutinesScreen(
@@ -61,127 +57,111 @@ fun RoutinesScreen(
             id = "night_routine",
             nameBangla = "শুভ রাত্রি রুটিন",
             triggerPhraseBangla = "শুভ রাত্রি / ঘুমের মোড",
-            description = "মিডিয়া পজ করবে, ব্রাইটনেস কমাবে এবং অ্যালার্ম সেট করবে",
-            actions = emptyList()
-        ),
-        Routine(
-            id = "focus_routine",
-            nameBangla = "পড়ার / মনোযোগ মোড",
-            triggerPhraseBangla = "পড়ার মোড",
-            description = "ভলিউম মিউট করবে এবং গান বন্ধ করবে",
+            description = "টর্চ বন্ধ করবে এবং সকাল ৭টায় অ্যালার্ম সেট করবে",
             actions = emptyList()
         )
     )
 
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val border = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "ভয়েস রুটিনসমূহ",
+            text = "দৈনন্দিন রুটিন",
             style = MaterialTheme.typography.headlineMedium,
-            color = TextPrimary,
+            color = textColor,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "এক কমান্ডে একাধিক কাজের সমন্বিত অটোমেশন",
+            text = "একটি মাত্র ভয়েস কমান্ডে একাধিক কাজ একসাথে সম্পন্ন করুন",
             fontSize = 12.sp,
-            color = TextSecondary
+            color = TextMuted
         )
 
         Spacer(modifier = Modifier.height(20.dp))
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.fillMaxSize()
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            items(predefinedRoutines) { routine ->
-                RoutineCard(
-                    routine = routine,
-                    onRun = { viewModel.runRoutine(routine.id) }
-                )
-            }
-            item {
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-        }
-    }
-}
-
-@Composable
-fun RoutineCard(
-    routine: Routine,
-    onRun: () -> Unit
-) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard),
-        border = BorderStroke(1.dp, Color(0xFF334155)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .background(BrandPrimary.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                            .padding(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = BrandPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = routine.nameBangla,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "ট্রিগার: \"${routine.triggerPhraseBangla}\"",
-                            fontSize = 12.sp,
-                            color = BrandSecondary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-
-                Button(
-                    onClick = onRun,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+            items(predefinedRoutines, key = { it.id }) { routine ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardBg),
+                    border = BorderStroke(1.dp, border)
                 ) {
-                    Icon(
-                        imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "চালান",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "চালান", color = Color.White, fontSize = 12.sp)
+                    Column(modifier = Modifier.padding(18.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(BrandPrimary.copy(alpha = 0.15f), RoundedCornerShape(10.dp))
+                                        .padding(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Schedule,
+                                        contentDescription = null,
+                                        tint = BrandPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = routine.nameBangla,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = textColor,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "ট্রিগার: “${routine.triggerPhraseBangla}”",
+                                        fontSize = 12.sp,
+                                        color = BrandSecondary,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            text = routine.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextMuted
+                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Button(
+                            onClick = { viewModel.runRoutine(routine.id) },
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PlayArrow,
+                                contentDescription = "চালাও",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("এখনই চালান", color = Color.White, fontSize = 12.sp)
+                        }
+                    }
                 }
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = routine.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
-            )
         }
     }
 }

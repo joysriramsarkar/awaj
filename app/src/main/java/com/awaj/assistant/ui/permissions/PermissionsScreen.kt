@@ -56,24 +56,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.awaj.assistant.safety.PermissionGate
 import com.awaj.assistant.ui.theme.BrandDanger
 import com.awaj.assistant.ui.theme.BrandPrimary
 import com.awaj.assistant.ui.theme.BrandSecondary
 import com.awaj.assistant.ui.theme.BrandSuccess
 import com.awaj.assistant.ui.theme.BrandWarning
-import com.awaj.assistant.ui.theme.DarkBackground
-import com.awaj.assistant.ui.theme.DarkSurfaceCard
 import com.awaj.assistant.ui.theme.TextMuted
-import com.awaj.assistant.ui.theme.TextPrimary
-import com.awaj.assistant.ui.theme.TextSecondary
 
 data class PermissionItemData(
     val titleBangla: String,
@@ -92,6 +88,10 @@ fun PermissionsScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var refreshTrigger by remember { mutableIntStateOf(0) }
+
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val border = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
 
     // Re-check permissions whenever user resumes from Settings screen
     DisposableEffect(lifecycleOwner) {
@@ -168,7 +168,7 @@ fun PermissionsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -182,13 +182,13 @@ fun PermissionsScreen(
                 Text(
                     text = "পারমিশন সেন্টার ও প্রাইভেসি",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary,
+                    color = textColor,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "স্বচ্ছতা, নিরাপত্তা ও নিয়ন্ত্রণের জন্য প্রতিটি পারমিশনের বিবরণ",
                     fontSize = 12.sp,
-                    color = TextSecondary
+                    color = TextMuted
                 )
             }
 
@@ -212,7 +212,7 @@ fun PermissionsScreen(
         // APM & Restricted Settings Advisory Banner
         Card(
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard),
+            colors = CardDefaults.cardColors(containerColor = cardBg),
             border = BorderStroke(1.dp, BrandWarning.copy(alpha = 0.4f)),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -221,24 +221,24 @@ fun PermissionsScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Warning,
+                    imageVector = Icons.Filled.Info,
                     contentDescription = null,
                     tint = BrandWarning,
-                    modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = "Android APM ও Restricted Settings সতর্কতা",
-                        fontSize = 12.sp,
+                        text = "Android Restricted Settings সংক্রান্ত তথ্য",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BrandWarning
+                        color = textColor
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "আপনার ডিভাইসে Advanced Protection Mode (APM) চালু থাকলে বা সাইডলোড অ্যাপের 'Restricted Settings' কার্যকর থাকলে সিস্টেম অ্যাক্সেসিবিলিটি পারমিশন স্বয়ংক্রিয়ভাবে ব্লক করতে পারে। সেক্ষেত্রে Safe Mode নির্ভরযোগ্যভাবে কাজ করবে।",
+                        text = "Android 13+ ভার্সনে সাইডলোডকৃত অ্যাপে অ্যাক্সেসিবিলিটি বন্ধ থাকলে: সেটিংস -> অ্যাপস -> Awaj -> উপরে ৩-ডট মেন্যু -> 'Allow restricted settings' অন করুন।",
                         fontSize = 11.sp,
-                        color = TextSecondary,
+                        color = TextMuted,
                         lineHeight = 16.sp
                     )
                 }
@@ -248,164 +248,166 @@ fun PermissionsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(permissionsList.size) { index ->
                 val item = permissionsList[index]
-                // evaluate based on current refreshTrigger
-                val isGranted = remember(refreshTrigger, index) {
-                    if (item.permissionKey != null) {
-                        ContextCompat.checkSelfPermission(context, item.permissionKey) == PackageManager.PERMISSION_GRANTED
-                    } else if (item.settingsAction == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
-                        Settings.canDrawOverlays(context)
-                    } else if (item.settingsAction == Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS) {
-                        PermissionGate.isNotificationListenerGranted(context)
-                    } else if (item.settingsAction == Settings.ACTION_ACCESSIBILITY_SETTINGS) {
-                        PermissionGate.isAccessibilityServiceEnabled(context)
-                    } else {
-                        false
-                    }
-                }
+                val isGranted = checkPermissionStatus(context, item, refreshTrigger)
 
-                PermissionRowCard(
+                PermissionCard(
                     item = item,
                     isGranted = isGranted,
                     onRequest = {
-                        if (item.permissionKey != null) {
-                            permissionLauncher.launch(arrayOf(item.permissionKey))
-                        } else if (item.settingsAction != null) {
-                            try {
-                                val intent = Intent(item.settingsAction).apply {
-                                    if (item.settingsAction == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
-                                        data = Uri.parse("package:${context.packageName}")
-                                    }
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                val intent = Intent(Settings.ACTION_SETTINGS).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                }
-                                context.startActivity(intent)
+                        if (item.isSpecialSettings && item.settingsAction != null) {
+                            val intent = Intent(item.settingsAction)
+                            if (item.settingsAction == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
+                                intent.data = Uri.parse("package:${context.packageName}")
                             }
+                            context.startActivity(intent)
+                        } else if (item.permissionKey != null) {
+                            permissionLauncher.launch(arrayOf(item.permissionKey))
                         }
                     }
                 )
             }
+
             item {
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
 }
 
 @Composable
-fun PermissionRowCard(
+fun PermissionCard(
     item: PermissionItemData,
     isGranted: Boolean,
     onRequest: () -> Unit
 ) {
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val border = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+
     Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard),
-        border = BorderStroke(1.dp, if (isGranted) BrandSuccess.copy(alpha = 0.3f) else Color(0xFF334155)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(
+            1.dp,
+            if (isGranted) BrandSuccess.copy(alpha = 0.3f) else border
+        ),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .background(
-                            if (isGranted) BrandSuccess.copy(alpha = 0.15f) else BrandPrimary.copy(alpha = 0.15f),
-                            RoundedCornerShape(12.dp)
-                        )
-                        .padding(10.dp)
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        tint = if (isGranted) BrandSuccess else BrandPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .background(
+                                if (isGranted) BrandSuccess.copy(alpha = 0.15f) else BrandPrimary.copy(alpha = 0.15f),
+                                RoundedCornerShape(10.dp)
+                            )
+                            .padding(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = null,
+                            tint = if (isGranted) BrandSuccess else BrandPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = item.titleBangla,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = textColor,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = if (isGranted) "অনুমতি দেওয়া হয়েছে ✓" else "অনুমতি দেওয়া হয়নি",
+                            fontSize = 11.sp,
+                            color = if (isGranted) BrandSuccess else TextMuted
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = item.titleBangla,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = item.description,
-                        fontSize = 11.sp,
-                        color = TextSecondary,
-                        lineHeight = 16.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                if (isGranted) {
+                if (!isGranted) {
+                    Button(
+                        onClick = onRequest,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+                    ) {
+                        Text("অনুমতি দিন", fontSize = 11.sp, color = Color.White)
+                    }
+                } else {
                     Box(
                         modifier = Modifier
                             .background(BrandSuccess.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.Filled.Check,
                                 contentDescription = null,
                                 tint = BrandSuccess,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = "অনুমোদিত", color = BrandSuccess, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("সক্রিয়", color = BrandSuccess, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
-                    }
-                } else {
-                    Button(
-                        onClick = onRequest,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
-                    ) {
-                        Text(text = "অনুমতি দিন", fontSize = 11.sp, color = Color.White)
                     }
                 }
             }
 
-            // Prominent Disclosure section if present
-            if (item.prominentDisclosure != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = item.description,
+                fontSize = 12.sp,
+                color = TextMuted
+            )
+
+            // Prominent Disclosure
+            if (item.prominentDisclosure != null && !isGranted) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
+                        .background(BrandSecondary.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
                         .padding(10.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.Top) {
-                        Icon(
-                            imageVector = Icons.Filled.Info,
-                            contentDescription = null,
-                            tint = BrandSecondary,
-                            modifier = Modifier.size(14.dp).padding(top = 2.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = item.prominentDisclosure,
-                            fontSize = 10.sp,
-                            color = TextMuted,
-                            lineHeight = 14.sp
-                        )
-                    }
+                    Text(
+                        text = item.prominentDisclosure,
+                        fontSize = 11.sp,
+                        color = textColor.copy(alpha = 0.85f),
+                        lineHeight = 15.sp
+                    )
                 }
             }
         }
+    }
+}
+
+private fun checkPermissionStatus(context: Context, item: PermissionItemData, trigger: Int): Boolean {
+    if (item.isSpecialSettings) {
+        return when (item.settingsAction) {
+            Settings.ACTION_MANAGE_OVERLAY_PERMISSION -> Settings.canDrawOverlays(context)
+            Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS -> PermissionGate.isNotificationListenerGranted(context)
+            Settings.ACTION_ACCESSIBILITY_SETTINGS -> PermissionGate.isAccessibilityServiceEnabled(context)
+            else -> false
+        }
+    }
+    return if (item.permissionKey != null) {
+        ContextCompat.checkSelfPermission(context, item.permissionKey) == PackageManager.PERMISSION_GRANTED
+    } else {
+        false
     }
 }

@@ -34,7 +34,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,11 +44,7 @@ import com.awaj.assistant.ui.theme.BrandDanger
 import com.awaj.assistant.ui.theme.BrandPrimary
 import com.awaj.assistant.ui.theme.BrandSuccess
 import com.awaj.assistant.ui.theme.BrandWarning
-import com.awaj.assistant.ui.theme.DarkBackground
-import com.awaj.assistant.ui.theme.DarkSurfaceCard
 import com.awaj.assistant.ui.theme.TextMuted
-import com.awaj.assistant.ui.theme.TextPrimary
-import com.awaj.assistant.ui.theme.TextSecondary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -60,11 +55,14 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val logs by viewModel.commandLogs.collectAsState()
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val border = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 20.dp)
     ) {
         Spacer(modifier = Modifier.height(16.dp))
@@ -77,15 +75,15 @@ fun HistoryScreen(
         ) {
             Column {
                 Text(
-                    text = "কমান্ড অডিট লগ",
+                    text = "কমান্ড ও প্রশ্নের ইতিহাস",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary,
+                    color = textColor,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "ডিভাইসে সংরক্ষিত স্থানীয় কমান্ড ইতিহাস",
+                    text = "১০০% লোকাল ডিভাইসে সংরক্ষিত অডিট লগ",
                     fontSize = 12.sp,
-                    color = TextSecondary
+                    color = TextMuted
                 )
             }
 
@@ -93,45 +91,45 @@ fun HistoryScreen(
                 OutlinedButton(
                     onClick = { viewModel.clearLogs() },
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, BrandDanger.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, BrandDanger.copy(alpha = 0.5f)),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandDanger)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.DeleteSweep,
-                        contentDescription = "লগ মুছুন",
+                        contentDescription = "মুছুন",
+                        tint = BrandDanger,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "মুছুন", fontSize = 12.sp)
+                    Text("মুছুন", fontSize = 12.sp, color = BrandDanger)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Privacy info card
+        // Privacy indicator
         Card(
             shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard),
-            border = BorderStroke(1.dp, Color(0xFF334155)),
+            colors = CardDefaults.cardColors(containerColor = cardBg),
+            border = BorderStroke(1.dp, border),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier.padding(14.dp),
+                modifier = Modifier.padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Filled.Lock,
                     contentDescription = null,
                     tint = BrandSuccess,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    text = "আপনার সমস্ত কমান্ড লোকাল ডেটাবেজে সংরক্ষিত থাকে। কোনো অডিও বা স্ক্রিন ডেটা ক্লাউডে শেয়ার করা হয় না।",
+                    text = "আপনার কোনো কথোপকথন বা স্ক্রিন অডিও ক্লাউডে সংরক্ষিত হয় না।",
                     fontSize = 11.sp,
-                    color = TextSecondary,
-                    lineHeight = 16.sp
+                    color = TextMuted
                 )
             }
         }
@@ -140,31 +138,33 @@ fun HistoryScreen(
 
         if (logs.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         imageVector = Icons.Filled.History,
                         contentDescription = null,
-                        tint = TextMuted,
+                        tint = TextMuted.copy(alpha = 0.5f),
                         modifier = Modifier.size(48.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "এখনো কোনো কমান্ডের ইতিহাস নেই",
+                        text = "এখনও কোনো কমান্ড চালানো হয়নি",
                         color = TextMuted,
-                        fontSize = 14.sp
+                        fontSize = 13.sp
                     )
                 }
             }
         } else {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(logs, key = { it.id }) { log ->
-                    CommandHistoryItem(log = log)
+                    HistoryItemCard(log = log)
                 }
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
@@ -175,18 +175,26 @@ fun HistoryScreen(
 }
 
 @Composable
-fun CommandHistoryItem(log: CommandLog) {
-    val dateFormat = SimpleDateFormat("hh:mm a, dd MMM", Locale.getDefault())
-    val formattedTime = dateFormat.format(Date(log.timestamp))
-    val banglaTime = IntentNormalizer.convertEnglishDigitsToBangla(formattedTime)
+fun HistoryItemCard(
+    log: CommandLog,
+    modifier: Modifier = Modifier
+) {
+    val dateStr = formatTimestamp(log.timestamp)
+    val dateBangla = IntentNormalizer.convertEnglishDigitsToBangla(dateStr)
+
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val border = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     Card(
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceCard),
-        border = BorderStroke(1.dp, Color(0xFF1E293B)),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, border)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -206,9 +214,9 @@ fun CommandHistoryItem(log: CommandLog) {
                 }
 
                 Text(
-                    text = banglaTime,
-                    fontSize = 11.sp,
-                    color = TextMuted
+                    text = dateBangla,
+                    color = TextMuted,
+                    fontSize = 11.sp
                 )
             }
 
@@ -216,8 +224,8 @@ fun CommandHistoryItem(log: CommandLog) {
 
             Text(
                 text = "“${log.rawText}”",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = textColor,
                 fontWeight = FontWeight.SemiBold
             )
 
@@ -234,9 +242,15 @@ fun CommandHistoryItem(log: CommandLog) {
                 Text(
                     text = log.resultSummary,
                     fontSize = 12.sp,
-                    color = TextSecondary
+                    color = if (log.isSuccess) TextMuted else BrandDanger.copy(alpha = 0.8f),
+                    maxLines = 2
                 )
             }
         }
     }
+}
+
+private fun formatTimestamp(timestamp: Long): String {
+    val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.ENGLISH)
+    return sdf.format(Date(timestamp))
 }

@@ -43,11 +43,7 @@ import com.awaj.assistant.ui.theme.BrandPrimary
 import com.awaj.assistant.ui.theme.BrandSecondary
 import com.awaj.assistant.ui.theme.BrandSuccess
 import com.awaj.assistant.ui.theme.BrandWarning
-import com.awaj.assistant.ui.theme.DarkBackground
-import com.awaj.assistant.ui.theme.DarkSurfaceCard
 import com.awaj.assistant.ui.theme.TextMuted
-import com.awaj.assistant.ui.theme.TextPrimary
-import com.awaj.assistant.ui.theme.TextSecondary
 
 @Composable
 fun HomeScreen(
@@ -61,6 +57,10 @@ fun HomeScreen(
     val lastRisk by viewModel.lastRisk.collectAsState()
     val pendingConfirmation by viewModel.pendingConfirmation.collectAsState()
     val currentMode by viewModel.currentMode.collectAsState()
+
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val bgColor = MaterialTheme.colorScheme.background
+    val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
 
     // Confirmation dialog if pending
     pendingConfirmation?.let { request ->
@@ -76,7 +76,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(DarkBackground, Color(0xFF0F172A))
+                    colors = listOf(bgColor, surfaceVariant.copy(alpha = 0.35f))
                 )
             )
             .padding(horizontal = 20.dp)
@@ -95,13 +95,13 @@ fun HomeScreen(
                 Text(
                     text = "আওয়াজ (Awaj)",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = TextPrimary,
+                    color = textColor,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "বাংলা ভয়েস সহকারী ও অটোমেশন",
+                    text = "বাংলা এআই সহকারী ও অটোমেশন",
                     fontSize = 12.sp,
-                    color = TextSecondary
+                    color = TextMuted
                 )
             }
 
@@ -140,11 +140,11 @@ fun HomeScreen(
         // Status text
         val statusText = when (speechState) {
             is SpeechState.Listening -> "শুনছি... কথা বলুন"
-            is SpeechState.Processing -> "কমান্ড প্রক্রিয়াধীন..."
+            is SpeechState.Processing -> "কমান্ড বা প্রশ্ন প্রক্রিয়াধীন..."
             is SpeechState.Speaking -> "উত্তর দেওয়া হচ্ছে..."
             is SpeechState.Recognized -> (speechState as SpeechState.Recognized).text
             is SpeechState.Error -> (speechState as SpeechState.Error).messageBangla
-            is SpeechState.Idle -> "মাইকে ট্যাপ করে বাংলায় বলুন"
+            is SpeechState.Idle -> "মাইকে ট্যাপ করে যেকোনো প্রশ্ন বা আদেশ করুন"
         }
 
         val statusColor = when (speechState) {
@@ -152,7 +152,7 @@ fun HomeScreen(
             is SpeechState.Processing -> BrandPrimary
             is SpeechState.Speaking -> BrandSuccess
             is SpeechState.Error -> BrandWarning
-            else -> TextSecondary
+            else -> TextMuted
         }
 
         Text(
@@ -180,14 +180,14 @@ fun HomeScreen(
                 is ToolResult.Blocked -> res.reasonBangla
                 is ToolResult.NeedsConfirmation -> res.summaryBangla
                 is ToolResult.ClarificationNeeded -> res.questionBangla
-                else -> "প্রক্রিয়াধীন রয়েছে..."
+                else -> "প্রক্রিয়াধীন রয়েছে..."
             }
 
             val isSuccess = lastResult is ToolResult.Success || lastResult is ToolResult.NeedsConfirmation
 
             ActionCard(
                 rawQuery = lastQuery,
-                parsedAction = lastAction.ifBlank { "VOICE COMMAND" },
+                parsedAction = lastAction.ifBlank { "AI ASSISTANT" },
                 riskLevel = lastRisk,
                 resultSummary = resultSummary,
                 isSuccess = isSuccess
@@ -209,9 +209,9 @@ fun HomeScreen(
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "প্রস্তাবিত কমান্ডসমূহ",
+                text = "প্রস্তাবিত কমান্ড ও প্রশ্নসমূহ",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                color = textColor,
                 fontWeight = FontWeight.SemiBold
             )
         }

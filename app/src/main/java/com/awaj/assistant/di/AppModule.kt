@@ -10,7 +10,7 @@ import com.awaj.assistant.nlu.LlmClient
 import com.awaj.assistant.nlu.RuleParser
 import com.awaj.assistant.routines.RoutineManager
 import com.awaj.assistant.safety.ConfirmationManager
-import com.awaj.assistant.safety.RiskClassifier
+import com.awaj.assistant.tools.AiChatTool
 import com.awaj.assistant.tools.ToolRegistry
 import com.awaj.assistant.tts.TtsManager
 import com.awaj.assistant.voice.VoiceProfileManager
@@ -26,7 +26,7 @@ class AppModule(private val context: Context) {
     val llmClient by lazy { LlmClient(preferenceRepository.geminiApiKey.value) }
 
     val confirmationManager by lazy { ConfirmationManager() }
-    val toolRegistry by lazy { ToolRegistry() }
+    val toolRegistry by lazy { ToolRegistry(listOf(AiChatTool(llmClient))) }
     val routineManager by lazy { RoutineManager(toolRegistry) }
 
     val agentPlanner by lazy { AgentPlanner() }

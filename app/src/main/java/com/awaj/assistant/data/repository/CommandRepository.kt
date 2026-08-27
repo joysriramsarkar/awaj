@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import com.awaj.assistant.data.db.CommandLogDao
 import com.awaj.assistant.data.models.CommandLog
 import com.awaj.assistant.nlu.AssistantMode
+import com.awaj.assistant.ui.theme.AppThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,10 +46,13 @@ class PreferenceRepository(context: Context) {
     private val _currentMode = MutableStateFlow(loadMode())
     val currentMode: StateFlow<AssistantMode> = _currentMode.asStateFlow()
 
+    private val _themeMode = MutableStateFlow(loadThemeMode())
+    val themeMode: StateFlow<AppThemeMode> = _themeMode.asStateFlow()
+
     private val _geminiApiKey = MutableStateFlow(prefs.getString("gemini_api_key", "") ?: "")
     val geminiApiKey: StateFlow<String> = _geminiApiKey.asStateFlow()
 
-    private val _useLlmForComplexCommands = MutableStateFlow(prefs.getBoolean("use_llm", false))
+    private val _useLlmForComplexCommands = MutableStateFlow(prefs.getBoolean("use_llm", true))
     val useLlmForComplexCommands: StateFlow<Boolean> = _useLlmForComplexCommands.asStateFlow()
 
     private fun loadMode(): AssistantMode {
@@ -60,9 +64,23 @@ class PreferenceRepository(context: Context) {
         }
     }
 
+    private fun loadThemeMode(): AppThemeMode {
+        val themeStr = prefs.getString("theme_mode", AppThemeMode.DARK.name)
+        return try {
+            AppThemeMode.valueOf(themeStr ?: AppThemeMode.DARK.name)
+        } catch (e: Exception) {
+            AppThemeMode.DARK
+        }
+    }
+
     fun setAssistantMode(mode: AssistantMode) {
         prefs.edit().putString("assistant_mode", mode.name).apply()
         _currentMode.value = mode
+    }
+
+    fun setThemeMode(mode: AppThemeMode) {
+        prefs.edit().putString("theme_mode", mode.name).apply()
+        _themeMode.value = mode
     }
 
     fun setGeminiApiKey(key: String) {

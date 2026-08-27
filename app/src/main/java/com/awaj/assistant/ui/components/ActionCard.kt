@@ -26,21 +26,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.awaj.assistant.nlu.RiskLevel
 import com.awaj.assistant.ui.theme.BrandDanger
 import com.awaj.assistant.ui.theme.BrandPrimary
-import com.awaj.assistant.ui.theme.BrandSecondary
 import com.awaj.assistant.ui.theme.BrandSuccess
 import com.awaj.assistant.ui.theme.BrandWarning
-import com.awaj.assistant.ui.theme.DarkSurfaceCard
-import com.awaj.assistant.ui.theme.DarkSurfaceGlass
 import com.awaj.assistant.ui.theme.TextMuted
-import com.awaj.assistant.ui.theme.TextPrimary
-import com.awaj.assistant.ui.theme.TextSecondary
 
 @Composable
 fun ActionCard(
@@ -51,11 +45,15 @@ fun ActionCard(
     isSuccess: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val cardBg = MaterialTheme.colorScheme.surfaceVariant
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val border = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceGlass),
-        border = BorderStroke(1.dp, Color(0xFF2D3748))
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, border)
     ) {
         Column(
             modifier = Modifier.padding(20.dp)
@@ -69,7 +67,7 @@ fun ActionCard(
                 // Action tag
                 Box(
                     modifier = Modifier
-                        .background(BrandPrimary.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .background(BrandPrimary.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
@@ -117,7 +115,7 @@ fun ActionCard(
             Text(
                 text = "“$rawQuery”",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary,
+                color = textColor,
                 fontWeight = FontWeight.SemiBold
             )
 
@@ -139,7 +137,8 @@ fun ActionCard(
                 Text(
                     text = resultSummary,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (isSuccess) TextSecondary else BrandDanger.copy(alpha = 0.9f)
+                    color = if (isSuccess) textColor.copy(alpha = 0.85f) else BrandDanger.copy(alpha = 0.9f),
+                    lineHeight = 20.sp
                 )
             }
         }

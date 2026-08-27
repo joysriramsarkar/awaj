@@ -21,12 +21,14 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,8 +45,6 @@ import com.awaj.assistant.ui.routines.RoutinesScreen
 import com.awaj.assistant.ui.settings.SettingsScreen
 import com.awaj.assistant.ui.theme.AwajTheme
 import com.awaj.assistant.ui.theme.BrandPrimary
-import com.awaj.assistant.ui.theme.DarkBackground
-import com.awaj.assistant.ui.theme.DarkSurface
 import com.awaj.assistant.ui.theme.TextMuted
 
 enum class NavigationItem(val titleBangla: String, val icon: ImageVector) {
@@ -78,7 +78,8 @@ class MainActivity : ComponentActivity() {
         handleIntentTrigger(intent)
 
         setContent {
-            AwajTheme {
+            val currentThemeMode by viewModel.themeMode.collectAsState()
+            AwajTheme(themeMode = currentThemeMode) {
                 MainAppContainer(viewModel = viewModel)
             }
         }
@@ -119,7 +120,7 @@ fun MainAppContainer(viewModel: MainViewModel) {
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = DarkSurface,
+                containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 8.dp
             ) {
                 NavigationItem.values().forEach { item ->
@@ -154,7 +155,7 @@ fun MainAppContainer(viewModel: MainViewModel) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DarkBackground)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(innerPadding)
         ) {
             when (selectedItem) {
